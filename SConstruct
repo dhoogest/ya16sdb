@@ -289,8 +289,7 @@ Do nothing with the unknown records for now because it might simply mean
 the ncbi taxonomy pipeline is out of sync with the latest 16s records
 """
 known_info, _ = env.Command(
-    target=['$out/new/taxit/seq_info.csv',
-            '$out/new/taxit/unknown.csv'],
+    target=['$out/new/taxit/seq_info.csv', '$out/new/taxit/unknown.csv'],
     source=new_info,
     action=['$taxit update_taxids '
             '--unknown-action drop '
@@ -299,38 +298,25 @@ known_info, _ = env.Command(
             '--schema $schema '
             '$SOURCE $tax_url'])
 
-"""
-vsearch new sequences with training set to test sequence orientation
-and 16s region
+'''
+cmsearch for non-bacteria sequences
 
-TODO: move to cmsearch
-"""
-vsearch = env.Command(
-    target='$out/new/vsearch.csv',
-    source=[new_fa, 'data/rdp_16s_type_strains.fasta.bz2'],
-    action=('vsearch '
-            '--usearch_global ${SOURCES[0]} '
-            '--db ${SOURCES[1]} '
-            '--id 0.70 '
-            '--threads 14 '
-            '--userfields query+target+qstrand+id+tilo+tihi '
-            '--strand both '
-            '--top_hits_only '
-            '--output_no_hits '
-            '--maxaccepts 1 '  # default is 1
-            '--maxrejects 32 '  # default is 32
-            '--userout $TARGET'))
+TODO: add cmsearch to project_setup.sh
+'''
+cmsearch = env.Command(
+    target='$out/new/cmsearch/cmsearch.txt',
+    source=['data/RRNA_16S_BACTERIA.cm', new_fa],
+    action='cmsearch -g --cpu 14 --tblout $TARGET $SOURCES > /dev/null')
 
-"""
-Fix record orientation.  Drop sequences with no alignments.
-These records are rare and we want to be able to re-download later
-them when the 16s training set updates.
-"""
-vsearch_fa, _ = env.Command(
-    target=['$out/new/vsearch/seqs.fa',
-            '$out/new/vsearch/unknown.fa'],
-    source=[vsearch, new_fa],
-    action='vsearch.py --unknowns ${TARGETS[1]} --out ${TARGETS[0]} $SOURCES')
+'''
+Remove non-bacteria sequences by bit score/e-value. Also, corrects
+sequence orientation to plus strand. The --unknowns arg mirrors taxit
+update_taxids.
+'''
+cmsearch_fa, _ = env.Command(
+    target=['$out/new/cmsearch/seqs.fasta', '$out/new/cmsearch/unknown.fasta'],
+    source=[cmsearch, new_fa],
+    action='cmsearch.py --unknowns ${TARGETS[1]} --out ${TARGETS[0]} $SOURCES')
 
 """
 Append with older records
@@ -355,7 +341,7 @@ fa, refresh_info, pubmed_info, references, refseq_info, _ = env.Command(
             '$out/refseq_info.csv',
             '$out/records.txt'],
     source=[esearch,
-            vsearch_fa, '$seqs_cache',
+            cmsearch_fa, '$seqs_cache',
             known_info, '$seq_info_cache',
             new_pub_info, '$pubmed_info_cache',
             new_refs, '$references_cache',

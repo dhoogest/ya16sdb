@@ -102,10 +102,10 @@ def main():
     args = p.parse_args()
 
     new_annos = pandas.read_csv(args.new_annos, dtype=str)
-    new_seqs = (s.id for s in SeqIO.parse(args.new_fasta, 'fasta'))
 
-    # sync with fasta
-    new_annos = new_annos[new_annos['seqname'].isin(new_seqs)]
+    # do not remove cmsearch seqs anymore.  They will not be re-downloaded
+    # new_seqs = (s.id for s in SeqIO.parse(args.new_fasta, 'fasta'))
+    # new_annos = new_annos[new_annos['seqname'].isin(new_seqs)]
 
     # read in prev_annos ignoring any accessions in the new data set
     if os.path.getsize(args.previous_annotations) == 0:

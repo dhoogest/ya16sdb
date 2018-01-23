@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Filters and aligns fasta records based on vsearch alignment and
+Filters and aligns fasta records based on cmsearch covariance model and
 presence of invalid sequence characters.
 """
 import argparse
@@ -15,14 +15,14 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     p.add_argument(
-        'vsearch',
-        help='vsearch alignments')
+        'cmsearch',
+        help='cmsearch alignments')
     p.add_argument(
         'fasta',
-        help='vsearch fasta file')
+        help='cmsearch fasta file')
     p.add_argument(
         '--unknowns',
-        required=True,  # mimics ``taxit update_taxids``
+        required=True,  # mirrors ``taxit update_taxids``
         metavar='fasta',
         help=('fasta format output of sequences not '
               'aligned or with invalid sequence characters'))
@@ -34,14 +34,15 @@ def main():
 
     args = p.parse_args()
 
-    vsearch = (row.split('\t') for row in open(args.vsearch))
-    vsearch = {row[0]: row[2] for row in vsearch if row[1] != '*'}
+    cmsearch = (row for row in open(args.cmsearch) if not row.startswith('#'))
+    cmsearch = (row.split() for row in cmsearch)
+    cmsearch = {row[0]: row[9] for row in cmsearch}
 
     with open(args.out, 'w') as out, open(args.unknowns, 'w') as unknowns:
         seqs = SeqIO.parse(args.fasta, 'fasta', Alphabet.IUPAC.ambiguous_dna)
         for s in seqs:
-            if s.id in vsearch and Alphabet._verify_alphabet(s.seq):
-                if vsearch[s.id] == '-':
+            if s.id in cmsearch and Alphabet._verify_alphabet(s.seq):
+                if cmsearch[s.id] == '-':
                     s.seq = s.seq.reverse_complement()
                 SeqIO.write(s, out, 'fasta')
             else:
